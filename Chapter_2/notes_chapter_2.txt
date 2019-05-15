@@ -1,0 +1,184 @@
+### Sutton and Barto ###
+
+*** Chapter 2: Multi-armed Bandits
+
+- A feature of RL that distinguishes it from other types of learning is that it uses training information that evaluates the actions taken rather than instructs by giving correct actions
+	- Creates need for active exploration
+
+- Purely evaluative feedback indicates how good the action taken was, but not whether it was the best or worst action possible
+- Purely instructive feedback, on the other hand, indicates the correct action to take, independently of the action actually taken 
+	=> Evaluative feedback depends completely on the action taken while instructive feedback is independent of the action taken
+
+Nonassociative setting: a setting that does not involve learning to act in more than one situation
+
+- We will look at how evaluative feedback differs from, and yet can be combined with, instructive feedback
+
+
+** 2.1: A k-armed Bandit Problem
+
+- The k-armed Bandit Problem:
+	- You are faced repeatedly with a choice among k different options, or actions
+	- After each choice you recieve a numerical reward from a stationary probability distribution that depends on the action you selected
+	- Your objective is to maximize the expected total reward over some time period
+
+- Let the expected(mean) reward given for the selected action be called the value of that action
+	
+- If we maintain estimates of the action values, then at any time step there is at least one action whose estimate is greatest.  We call these the greedy actions.  When you select one of these actions, we say that you are exploiting your current knowledge of the values of the actions.  If instead you select one of the nongreedy actions, then we say you are exploring, because this enables you to improve your estimate of the nongreedy action's value.
+
+- Exploitation is the right thing to do to maximize the expected reward on the one step, but exploration may produce the greater total reward in the long run
+- During exploration, reward is lower in the short run but higher in the long run because after you have discovered the better action, you can exploit them many times
+
+
+** 2.2: Action-value Methods
+
+- Action-value methods: methods for estimating the values of actions and for using the estimates to make action selection decsions
+
+q_*(a): the expected reward given that a is selected
+
+- Sample-average method:
+	- Q_t(a) is the true value of an action, which is the mean reward when that action is selected
+	- As the number of times action a trends toward infinity, Q_t(a) will converge to q_*(a) due to the law of large numbers
+
+- Greedy Action Selection: select the action with the highest estimated value
+
+
+- Eps-greedy methods:
+	- Behave greedily most of the time, but every once in a while, say with small probability eps, instead select randomly from among all the actions with equal probabillity, independent of the action-value estimates
+	- Advantage:  in the limit as the number of steps increases,e very action will be sampled an infinite number of times, thus ensuring that all the Q_t(a) coverge to q_*(a)
+
+** 2.3: The 10-armed Testbed
+
+	- Set of 2000 randomly generated k-armed bandit problems with k = 10
+	- For each bandit problem, q_*(a) were selected according to a Gaussian distribution with mean 0 and variance 1
+	- When a learning method applied to that problem selected action A_t at time step t, the actual reward, R_t, was selected from a Gaussian with mean q_*(A_t) and variance 1
+	- For any learning method, we can measure its performance and behavior as it improves with experience over 1000 time steps when applied to one of the bandit problems.  This makes up one run.  Repeating this for 2000 indpendent runs, each with a different bandit problem, we obtained measures of the learning algorithm's average behavior
+
+- The advantage of eps-greedy over greedy methods depends on the task.  For example, if reward variance is large(noisier rewards), it takes more exploration to find the optimal action, and eps-greedy methods should fare better relative to the greedy method.  On the other hand, if reward variance were 0, then the greedy method would know the true value of each action after try it once, and the greedy mehtod might actually perform best.
+
+- In nonstationary tasks, that is the true values of the actions change over time, we need to explore because the action with the highest value might change 
+
+
+** 2.4: Incremental Implentation
+
+- The obvious way to maintain our estimate of reward at time-step n, Q_n, would be to keep a record of all rewards received and then compute Q_n but this is not computationally efficient
+
+- Instead of keeping track of all the rewards, We can devise incremental formulas for updating averages with small, constant computation required to process each new reward.  Given Q_n and the nth reward, R_n, the new average of all n rewards can be computed by:
+			Q_(n+1) = (1/n)*SUM_i=1->n R_i 
+		  			= Q_n + (1/n)[R_n - Q_n]
+
+- Updates Rule(General Form):
+	New_Estimate <- Old_estimate + StepSize[Target - Old_Estimate]
+		*Formula Explanation:
+			- Target is our nth reward
+			- [Target - Old_Estimate]: error in the estimate
+			- We take a step toward the target starting from Old_estimate
+		*Note: the StepSize paramater changes from time step to time step
+
+
+** 2.5: Tracking a Nonstationary Problem
+
+- In RL problems that are nonstationary,it makes sense to give more weight to more recent rewards than to long-past rewards.  One of the most popular ways to do this is to use a constant step-size paramater
+	
+- Constant Step-size Parameter Method:
+	Q_(n+1) = Q_n + alpha*[R_n - Q_n]
+			...
+			algebra
+			...
+			= (a - alpha)^n*Q_1+ SUM_i=1->n alpha(1-alpha)^(n-i)*R_i
+
+
+** 2.6: Optimistic Initial Values
+
+- All methods we have disssussed so far are dependent to some extent on their initial action-value estimates, Q_1(a).  
+	=> these methods are biased towards thir initial estimates
+
+- In practice, this kind of bias is usually not a problem and can be helpful
+- The downside is that these initial estimates become a set of parameters that need to be chosen by the user
+
+- Optimistic Initial Values Method:
+	- By setting our initial values to a wildly optimistic value, we can encourage exploration 
+		- Example:
+			- Set our initial values to 5 and our rewards are still sampled from N(0, 1)
+			- Then whichever actions are selected will yield a reward much less than that initial estimate, which will reduce our estimate of the reward for that action
+			- Now actions that have not been explored as much will have higher estimated rewards and will be explored instead
+				=> All actions are tried several times before the value estimates converge
+
+- The Optimistic initial values method is a simple trick to encourage exploration and is well suited for stationary problems.  However, it is not well suited for nonstationary problems because its drive for exploration is inherently temporary
+
+
+** 2.7: Upper-Confidence-Bound Action Selection
+
+- Epsilon-greedy action selection forces non-greedy actions to be tried, but indiscriminantly, with no preference for those that are nearly greedy or particularly uncertain.
+- It would be better to select among the non-greedy actions according to their potential for actually being optimal, taking into account both how close their estimates are to being maximal and the uncertainties of those actions.
+
+- Upper Confidence bound action selection
+	A_t = argmax_a[Q_t(a) + c*sqrt(ln(t)/N_t(a))] where c controls the degree of exploration
+
+- The idea of UCB action selection:
+	- the sqrt term is a measure of the uncertainty or variance in the estimate of a's value
+	- the quantity being max'ed over is thus a sort of upper bound on the possible true value of action a, with c determining the confidence level
+	- Each time a is selected the uncertainity is presumably reduced because N_t(a) increases and that is in the denominator
+	- Each time an action other than a is selected, the uncertainty estimate increases because t increases while the denominator remains constant
+	- The use of the natural logarithm means that the increases get small over time
+	- All actions will eventually be selected, b ut actions with lower value estimates, or that have already been selected frequently, will be selected with decreasing frequency over time
+
+
+- UCB performs well but is dificult to extend to beyond bandits to more general RL settings 
+- UCB has difficulty dealing with nonstationary problems and large state spaces, particularly when using function approximations
+
+
+** 2.8: Gradient Bandit Algorithms
+
+- Another way to select actions is to learn a numerical preference for each action a, which we denote H_t(a).  The larger the preference, the more often that action is taken but the preference has no interpretation in terms of reward.
+
+- The action probabilities are determined according to a soft-max distribution, P(A_t = a) = pi_t(a)
+- Initially all action preferences are the same (i.e. H_t(a) = 0) so all actions have an equal probability of being selected
+- On each step, after selecting an action A_t and receiving the reward R_t, the action preferences are updated by:
+	H_(t+1)(A_t) = H_t(A_t) + alpha*(R_t - R_bar_t)(1 - pi_t(A_t))
+	and
+	H_(t+1) = H_t(a) - alpha*(R - R_bar_t)*PI_t(a) for all a /= A_t
+	* Where alpha > 0 is a step size parameter, R_bar_t is the average of the rewards up through and including time t
+
+- R_bar_t serves as a baseline with which the reward is compared
+	- If the reward is higher than the baseline => the probability of taking A_t in the future is increased, and if the reward is below basieline, then the probability is decreased.  The non-selected actions move in the opposite direction
+
+
+** 2.9: Asscociative Search (Contextual Bandits) 
+
+- So far in this chapter we have only considered nonassociative tasks, tasks in which there is no need to associate different actions with different situations.  In these tasks, the learner tries to find the single best action if the task is stationary or tries to track the best action as it changes over time when the task is nonstationary. However, in a general RL task there is more than one situation, and the goal is to laean a policy
+
+- Policy: a mapping from situations to the actions that are best in those situations
+
+- Associative search task: a task that involves both trial-and-error learning to search for the best action, and association of these actions with the situations in which they are best.
+	*Note: Associative Search tasks can be called contextual bandits in the literature
+
+- Associative search tasks are an intermediary between the k-armed bandit problem and a full RL problem
+	-> They involve learning a policy but each action only affects the immediate reward.
+	-> If the actions were allowed to affect the next situation and reward then we would have the full RL problem
+
+
+** 2.10: Summary
+
+- The methods we explored in this chapter are the state of the art
+
+- Thompson Sampling (also called Posterior Sampling):
+	- Bayesian meethod which assumes a known initial distribution over the action values and then updates the distribution exactly after each step(assuming the true action values are stationary).  In general, the update computation can be very complex but for certain special distributions(conjugate priors) they are easy.  One possibility is then to select actions at each step according to their posterior probability of being the best action.
+	- It is conceivable to compute the optimal balance between exploration and exploitation but the tree of possibilities grows extremely rapidly and is generally computationally infeasible
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

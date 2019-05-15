@@ -1,0 +1,335 @@
+### Sutton and Barto ###
+
+*** Chapter 3: Finite Markov Decision Processes
+
+- We will introduce the fromal problem of finite Markov Decision Processes that we will try to solve for the rest of the book
+
+- This problem involves evaluative feedback, as in bandits, but also an associative aspect - choosing different actions in different situations
+
+- MDPs are a classical formalization of sequential decsion making, where actions influence not only immediate rewards, but also subsequent situations, or states, and through those future rewards.
+	-> Thus, MDPs ivolve delayed reward and the need to tradeoff immediate and delayed reward
+
+- In MDPs we estimate either:
+	- q_*(s, a), which is the estimate of the value of each action a, in each state s
+	- v_*(s), which is the estimate of the value of each state given optimal action selections
+
+- These state-dependent quantities are essential for accurately assigning credit for long-term consequences to individual action selections
+
+- As in all of AI, there is a tension between breadth of applicability and mathematical tractability.  In this chapter we introduce this tension and discuss some of the trade-offs and challenges
+
+
+** 3.1: The Agent-Environment Interface
+
+- MDPs are meant to be a straightfoward framing of the problem of learning from interaction to achieve a goal
+
+- Terminology:
+	- Agent: the learner and decision maker
+	- Evironment: the thing the agent interacts with, comprising everything outside the agent.  Also, gives rise to rewards
+	- Rewards: special numerical values that the agent seeks to maximize over time through its choice of actions
+
+- The agent and environment interact continually, the agent selecting actions and the environment repsonding to these actions and presenting new situations to the agent.  
+
+- The environment also gives rise to rewards, special numerical values that the agent seeks to maximize over time through its choice of actions
+
+- More specifically, the agent and environment interact at each step of a sequence of discrete time steps, t = 0, 1, ... At each time step t, the agent receives some representation of the environment's state, S_t element of S_space, and on that basis selects an action, A_t element of A_space(s). One time step later, in part as a consequence of its action, the agent receives a numerical reward, R_(t+1) element of R_space subset of Real_NUmbers, and finds itself in a new state S_(t+1)
+	*Note: we restrict attention to discrete time for simplicity but many of the ideas can be implemented for continuous-time problems
+
+- The MDP and agent together give rise to a sequence or trajectory that begins like this:
+	S_0, A_0, R_1, S_1, A_1, R_2, S_2, A_2, ...
+
+- In a finite MDP, the sets of states, actions and rewards (S_state, A_state, R_state) all have a finite number of elements.  In this case, R.V.s R_t and S_t have well defined discrete probability distributions dependent on the preceding state and action.  That is, for particular values of these R.V.s, s' element of S_space and r element of R_space, there is a probability of those values occuring at time t, given particular values of the preceeding state and action:
+		p(s', r | s, a) = P(S_t = s', R_t = r | S_(t-1) = s, A_(t-1) = a)  
+			for all s', s element of S_space, r element of R_space, and a element of A_space(s)
+		- This fxn p defines the dynamics of the MDP
+
+- Markov Property: 
+	-In a MDP, the probabilities given by p completely characterize the environments dynamics. That is, the probability of each possible value for S_t and R_t depends only on the immediately preceding state and action, S_(t-1) and A_(t-1), and given them, not at all on earlier states and actions.
+
+- The Markov Property is best viewed as a restriction not on the decision process, but on the state.  The state must include information about all aspects of the past agent-environment interaction that make a difference for the future.  If it does, the the state is said to have the Markov Property
+
+- We assume the Markov Property thoughout this book unit Part II
+
+- State-transition Probabilities:
+	- Using the dynamics fxn, p, we can compute the state-transition probabilities:
+		p(s' | s, a) = P(S_t = s' | S_(t-1) = s, A_(t-1) = a) = SUM_r p(s', r | s, a) 
+
+- Expected Rewards for state-action pairs:
+	- We can also compute the expected rewards for state-action pairs:
+		r(s, a) = E[R_t | S_(t-1) = s, A_(t-1) = a] = SUM_r r SUM_s' p(s', r | s, a)
+
+- Expected reward  for state-action-next-state triples:
+	r(s, a, s') = E[R_t | S_(t-1) = s, A_(t-1) = a, S_t = s'] = SUM_r r*((p(s', r | s, a)/ p(s' | s, a)))
+
+- MDP frework is flexible and can be applied to many different problems. 
+	- For example:
+		 - Time steps need not refer to fixed intervals of real time
+		 - Actions can be high-level or low-level decisions
+		 - Some of what makes up a state could be based on memory of past sensations or even be entirely mental or subjective
+
+- In general, actions can be any decisions we want to learn how to make, and the states can be anything we can know that might be useful in making them
+
+- The general rule we follow is that anything that cannot be changed arbitrarily by te agent is considered outside of the agent and thus part of the environment.
+
+- The agent-environment boundary represents the limit of the agent's absolute control, not of its knowledge
+
+- MDPs propose that any problem of learning goal-directed behavior can be simplified to three signals passing back and forth between the agent and the environment:
+	1. One signal to represent the choices made by the agent (the actions)
+	2. One signal to represent the basis on which choices are made (the state)
+	3. One signal to define the agents goal (the reward)
+	- This framework might not be sufficient to represent all decision-learning problems usefully, but it has proved to be widely useful and applicable
+
+- It is typical in RL to have states and actions structured in lists or vectors.
+- Rewards on the other hand are ALWAYS single numbers. 
+
+
+** 3.2: Goals and Rewards
+
+- The purpose or goal of the agent is formalized in terms of a special signal, called the reward, passing from the environment to the agent.  At each time step , the reward is a simple number, R_t element Real Numbers. Informally, the agent's goal is to maximize the total reward (i.e. cumulative reward) it receives in the long run and the goal is not to maximize the immediate reward.
+
+- Reward Hypothesis:
+	- That all of what we mean by goals and purposes can be well thought of as the maximization of the expected value of the cumulative sum of a received scalar signal (called reward).
+
+- Although formulating goals in terms of reward signals might at first appear limiting, in practice it has proved to be flexible and widely applicable
+
+- The agent always learns to maximize its reward
+
+- If we want the agent to do something for us, we must provide rewards to it in such a way that in maximizing them the agent will achieve our goals.  It is thus critical that the rewards we set up truly indicate what we want to accomplished.
+
+- The reward signal is NOT the place to impart to the agent prior knowledge about how to achieve what we want it to do
+	-> If achieving subgoals is rewarded, then the agent might learn a way to achieve the subgoals without actually achieving the main goal!
+
+- The reward signal is your way of communicating to the robot what you want it to achieve, not how you want to achieve it.
+
+
+** 3.3: Returns and Episodes
+
+- The agent's goal is to maximize the cumulative reward it receives in the long run.  
+
+- Episodic Tasks:
+	- Let R_(t+1), R_(t+2), ... be the sequence of rewards received after time step t
+	- In the simplest case the return, denoted G_t, is the sum of the rewards:
+			G_t = R_(t+1) + R_(t+2) + ... + R_T where T is the final time step
+	- This notation makes sense for tasks where there is a natural notion of a final time step.
+	- When the agent-environment interaction breaks naturally into subsequences we call each subsequence an episode
+	- Each episode ends in a special state called a terminal state, followed by a reset to a standard starting state or to a sample from a standard distribution of starting states.
+	- The next episode begins independently of how the previous one ended
+	- Thus, the episodes can all be considered to end in the same terminal state, with different rewards for the final outcomes.
+	- Notation:
+		- S_states: set of all nonterminal states
+		- S^+: terminal state
+		- T: the time of termination.  T is a RV that normally varies from episode to epidsode.
+
+- Continuing Tasks:
+	- Tasks where the agent-environment interaction does not break naturally into identifiable episodes, but goes on continually without limit.
+	- We need to include the concept of discounting into our return fxn, G_t, so that G_t doesn't increaase without bound:
+		G_t = R_(t+1) + gamma*R_(t+2) + gamma^2*R_t(t+3) + ... = SUM_k=0->inf gamma^k*R_(t+k+1)
+	- gamma is the discount factor and 0 <= gamma <= 1 
+	- If gamma < 1 , the infinite sum above has a finite value as long as the reward sequence is bounded
+	- As gamma approaches 1, the return objective takes future rewards into account more strongly; the agent becomes more farsighted.
+
+- We can rewrite G_t in a new form that will be useful later:
+	G_t = R_(t+1) + gamma*R_(t+2) + gamma^2*R_(t+3) + gamma^3*R(t+4) + ...
+		= R_(t+1) + gamma(R_t(+2) + gamma*R_(t+3) + gamma^2*R_(t+4) + ...)
+		= R_(t+1) + gamma*G_(t+1)
+	*Note: this works for all time steps t < T if we define G_T = 0.
+
+
+** 3.4: Unified Notation for Episodic and Continuing Tasks
+
+S_t,i : the state representation at time t of episode i (and similarly for A_t,i , R_t,i, pi_t,i)
+	-> Although this is proper notation the episode index is often ommitted
+
+- We have defined G_t as a sum over a finite number of terms for episodic tasks and as a sum over an infite number of terms for continuinbg tasks.  These two can be unified by considering episode termination to be the entering of a special absorbing state that transitions only to itself and that generates only rewards of zero.
+- We get the same return if we sum over the first T rewards or over the full infite sequence.
+- The return, G_t, can be defined in general as:
+		G_t = SUM_k=t+1->T gamma^(k-t-1)*R_k
+	including the possibility that T = inf or gamma = 1 (but not both)
+
+
+** 3.5: Policies and Value Functions
+
+- Almost all RL algorithms involve estimating value functions- functions of states(or of state-action pairs) that estimate how good it is for the agent to be in a given state (or how good it is to perform a given action in a given state).  The notion of 'how good' here is defined in terms of future rewards that can be expected, or, to be precise, in terms of expected return.
+
+- Value functions are defined with respect to particular ways of acting called policies
+
+- Formally, a policy is a mapping from states to probabilities of selecting each possible action.  If the agent is following policy PI at time t, then PI(a|s) is the probability that A_t = a if S_t = s.
+
+- RL methods specify how the agent's policy is changed as a result of its experience.
+
+- Value Function: the value fxn of a state s under a policy PI, denoted v_PI(s), is the expected return when starting in s and following PI thereafter. For MDPs, we can define v_PI formally by:
+	v_PI(s) = E_PI[G_t | S_t = s] for all s element S_space
+
+- The value of the terminal state, if any, is always 0
+
+- We call the function v_PI the state-value fxn for policy PI
+
+- Similarly, we define the value of taking action a in state s under a policy PI, denoted q_PI(s, a) as the expected return from starting from s, taking the action a, and thereafter following policy PI:
+		q_PI(s, a) = E_PI[G_t | S_t = s, A_t = a]
+
+- We call q_PI the action-value fxn for policy PI
+
+- The value fxns v_PI and q_PI can be estimated from experience.  For example, if an agent follows policy PI and maintains an average, for each state encountered, of the actual returns that have followed that state, then the average will converge to the state's value, v_PI(s), as the number of times that state is encountered approaches infity.  If separate averages are kept for each action taken in each state, then these averages will similarly converge to the action values, q_PI(s, a)
+
+- If there are very many states, then it may not be practical to keep separate averages for each state individually.  Instead, the agent would have to maintain v_PI and q_PI as parameterized functions and adjust the parameters to better match observed returns.
+
+- Bellman Equation:
+	- A fundamental property of value functions used throughout RL and dynamic programming is that they satify recurisve relationships similar to that which we have already established for the return.  For any policy PI and any state s, the following consistency condition holds between the value of s and the value of its possible successor states:
+		v_PI(s) = E_PI[G_t | S_t = s]
+				= SUM_a PI(a|s) SUM_s',r p(s', r |s, a) [r + gamma*v_PI(s')], for all s element S_state
+		*Note: this is the Bellman equation for v_PI
+		- Note how the final expresssion can be read easily as an expected value.  It is really a sum over all the three variables, a, s' and r.  For each triple, we compute its probability, PI(s|a)p(s', r|s, a), weight the quantity in brackets by that probability, then sum over all possibilities to get an expected value.
+
+- The Bellman equation averges over all the possibilities, weighting each by its probability of occuring.  It states that the value of the start state must equal the (discounted) value of the expected next state, plus the expected reward along the way.
+
+- The value function v_PI is the unique solution to its Bellman equaltion.
+
+- Backup operations: opertions that transfer value information back to a state (or a state-action pair) from its successor states (or state-action pairs)   
+
+
+** 3.6: Optimal Policies and Optimal Value Functions
+
+- Solving a RL task means, roughly, finding a policy that achieves a lot of reward over the long run.  For finite MDPs, we can preciseily define an optimal policy.
+
+- Value functions define a partial ordering over policies
+
+- A policy PI is defined to be better than or equal to a policy PI' if its expected return is >= to a policy PI' for all states.  
+	PI >= PI' iff v_PI(s) >= v_PI'(s) for all s element S_space
+
+- There is always at least one policy that is better than or equal to all other policies. This is an optimal policy.
+
+- We denote all optimal policies as PI_*
+
+- All PI_* share the same state-value funciton, called the optimal state-value fxn denoted v_*:
+	v_* = max_PI v_PI(s) for all s element S_space
+
+- Optimal Policies an also share the same optimal ation-value function, denoted q_*, and defined as:
+		q_*(s, a) = max_PI q_*(s, a) for all s element S_space and a element A_space
+
+- For each state-action pair (s, a), this function gives the expected return for taking action a in state s and thereafter following an optimal policy
+
+- We cam write q_* in terms of v_* as follows:
+	q_*(s, a) = E[R_(t+1) + gamma*v_*(S_(t+1)) | S_t = s, A_t = a] 
+
+- Bellman Optimiality Equations:
+	- the Bellman optimality equation expresses the fact that the value of a state under an optimal policy must equal the expected return for the best action from that state
+		v_*(s) = max_a q_PI*(s, a) = max_a SUM_s',r p(s', r | s, a)[r + gamma*v_*(s')]
+	- Simliarly the Bellman Optimality equation for q_* is:
+		q_* = E[R_(t+1) + gamma*max_a' q_*(S_(t+1), a) | S_t = s, A_t = a]
+			= SUM_s',r p(s', r |s, a)[r + gamma*max_a'q_*(s', a')]
+
+- For finite MDPs, the Bellman Optimality equation for v_* has a unique solution.
+
+- The Bellman optimality equation is actully a system of equation, one for each state, so if there are n states, there are n equations in n unknowns.  If the dynamics p of the environment are known, then in principle one can solve this system of equations fot v_* using any one of a variety of methods for solving systems of nonlinear equations.  One can solve a related set of equations for q_*.
+
+- Once one has v_*, it is relatively easy to determine an optimal policy.  For each state s, there will be one or more actions at which the maximum is obtained in the Bellman optimality equation.  Any policy that assigns nonzero probability only to these actions is an optimal policy.  If you have the optimal value function, v+*, then the actions that appear best after a one-step search will be optimal actions.
+
+- Any policy that is greedy w.r.t. v_* is an optimal policy.
+
+- The beauty of v_* is that if one uses it to evaluate short-term consequences of actions- specifcally, the one-step consequences- then a greedy policy is actually optimal in the long-term sense in which we are interested because v_* already takes into account the reward consequences of all possible future behavior.  By means of v_*, the optimal expected long-term return is turned into a quantity that is locally and immediately available fot each state.  Hence, a one-step-ahead search yields the long-term optimal actions
+
+- Having q_* makes choosing optimal actions even easier.  With q_*, the agent does not even have to do a one-step-ahead search: for any state s, it can simply find any action that maximizes q_*(s, a).  The action-value fxn effectie caches the resultes of all one-step-ahead searches.  It provides the optimal expected long-term return that is locally and immediately available for each state-action pair.  Hence, at the cost of representing a fxn of state-action pairs, instead of just states, the optimal action-value fxn allows optimal actions to be selected without having to know anything about possible successor states and their values, that is, without having to know anything about the environment's dynamics. 
+
+- Solving the Bellman optimality equation explicitly is akin to an exhaustive search, looking ahead at all possibilities, computing their probabiliries of occurence and their desirabilities in terms of expected return.  This solution relies on 3 assumptions that are rarely true in preactice:
+	1") we accurately know p
+	2) we have enough computational resources to complete the computation of the solution
+	3) the markov property
+	=> Thus, in RL one normally has to settle for approximate solutions.
+
+
+** 3.7: Optimality and Approximation
+
+- It is usually not possible to simply compute an optimal policy by solving the Bellman optimality equation
+
+- A critical aspect of the problem facing the agent is always the computational power available to it, in particular the amount of computation it can perform in a single time step
+
+- Another important constraint is memory.  A large amount of memory is often required to build up approximations of value functions, policies and models.
+
+- Tabular case: In tasks with small, finite state sets, it is posisble to form these approximations using arrays or tables withone entry for each state( or state-action pair). This we call the tablular case and the corresponding methods we call tabular methods
+
+- In many cases of practical interest, however, there are far more states than could possibly be entries in a table.  In these cases the functions must be approximated, using some sort of more compact parameterized fxn representation.
+
+- In approximating opitmal behavior, there may be many states that the agent faces with such low probability that selecting suboptimal actions for them has little impact on the amount of reward the agent receives
+
+- The online nature of RL makes it possible to approximate optimal policies in a ways that put more effort into learning to make good decision for frequently encountered states, at the expense of less effort for infrequently encountered states. 
+
+
+** 3.8: Summary
+
+- RL is about learning fron interaction how to behave in order to achieve a goal
+
+- The RL agent and its environment interact over a sequence of discrete time steps
+- The specification of their interaction defines a particular task:
+	- the actions are the choices made by the agent
+	- the states are the basis for making choices
+	- and the rewards are the basis for evaluating the choices
+- Everything inside the agent completely known and controllable by the agent
+- Everything outside the agent is incompletely controllable but may or may not be completely known
+- A policy is a stochastic rule by which the agent selects actions as a fxn of states 
+- The agent's objective is to maximize the amount of reward it recieves over time
+
+- When the RL setup is formualted with well deinfed transition probabilities it constitutes a MDP
+- A finite MDP is an MDP with finite states, actions and reward sets
+
+- The return is the function of future rewards that the agent seeks to maximize(in expected value)
+	- It has several different definitiions based on the nature of the problem and whether one wishes to discount future rewards
+		- undiscounted rewards => episodic tasks 
+		- discounted rewards => continuing tasks (although not exclusively)
+
+- A policy's value funciton assigns to each state, or state-action pair, the expected return from that state, or state-action pair, given that the agent uses the policy.
+- The optimal value functions assign to each state, or state-action pair, the largest expected return achievable by any policy.
+- A policy whose value functions are optimal is an optimal policy
+- The optimal value function is unique for a given MDP but there can be many optimal policies
+	- Any policy that is greedy w.r.t. the optimal value fxn must be an optimal policy
+- The Bellman optimality equations are special consistency conditions that the optimal value fxns must satisfy and that can, in principle, be solved for the optimal value functions, from which an optial policy can be determined.
+
+- In problems of complete knowledge, the agent has a complete and accurate model of the environment's dynamics.
+	If the environment is an MDP, ten such a model consists of the complete four-argument dynamics fxn p
+- In problems of incomplete knowledge, a complete and perfect model of the environment is not available
+
+- Even with a model, it is often difficult for the agent to perform the necessary computation per time step to use it
+- Memory may be required to build up accurate approximations of value functions, policies and models.
+- In most cases of practical interest, there are too many states to be in a table and we must use approximations
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
